@@ -281,6 +281,7 @@ input, textarea, select { font-family: inherit; }
 .chip.nuevo { background: var(--red-dim); color: var(--red); }
 .chip.proceso { background: var(--amber-dim); color: var(--amber); }
 .chip.resuelto { background: var(--green-dim); color: var(--green); }
+.chip.rechazado { background: var(--red-dim); color: var(--red); }
 .chip.lock { background: var(--panel3); color: var(--muted); }
 .chip.src { background: rgba(37, 211, 102, 0.1); color: var(--wa); }
 .group-title { font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); font-weight: 600; margin: 22px 0 10px; }
@@ -546,6 +547,11 @@ input, textarea, select { font-family: inherit; }
 }
 .res-form select:focus, .res-form input:focus { border-color: var(--green); }
 .res-form .two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.mini-input {
+  width: 100px; background: var(--bg2); border: 1px solid var(--line); border-radius: 9px;
+  color: var(--text); padding: 7px 10px; font-size: 13.5px; outline: none;
+}
+.mini-input:focus { border-color: var(--green); }
 
 /* ============ MENÚ MÓVIL (hamburguesa + drawer) ============ */
 .menu-btn { display: none; font-size: 17px; flex: none; }

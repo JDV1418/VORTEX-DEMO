@@ -36,28 +36,37 @@ const PROVIDERS = [
 ];
 
 /* ---------- Residentes (datos ficticios) ---------- */
+/* ---------- Tipos de apartamento y cuota mensual ---------- */
+/* El monto lo carga/edita la Administración desde la app (⚙️ en Comprobantes). */
+const APT_TYPES = [
+  { id: "estandar",  label: "Apartamento estándar", cuotaMensual: 185.00 },
+  { id: "penthouse", label: "Penthouse",             cuotaMensual: 210.00 },
+];
+
 const RESIDENTS = [
-  { id: "r1",  apt: "PH-1A",  name: "Marta Ríos",      phone: "+507 6***-**41", cedula: "8-***-**12", estado: "Al día",    bitacora: ["2026-06-02 · Comprobante junio recibido", "2026-05-14 · Solicitud de llave adicional"] },
-  { id: "r2",  apt: "PH-2B",  name: "Samuel Ortiz",    phone: "+507 6***-**87", cedula: "8-***-**93", estado: "Al día",    bitacora: ["2026-06-05 · Comprobante junio recibido"] },
-  { id: "r3",  apt: "PH-3B",  name: "Carlos Peña",     phone: "+507 6***-**23", cedula: "8-***-**77", estado: "Moroso 1m", bitacora: ["2026-06-18 · Reporte de ruido (resuelto)", "2026-05-30 · Recordatorio de pago enviado"] },
-  { id: "r4",  apt: "PH-5A",  name: "Lucía Fernández", phone: "+507 6***-**55", cedula: "8-***-**31", estado: "Al día",    bitacora: ["2026-06-10 · Reservó Área Social (20 jun)"] },
-  { id: "r5",  apt: "PH-6A",  name: "Paola Vega",      phone: "+507 6***-**19", cedula: "8-***-**02", estado: "Al día",    bitacora: ["2026-06-01 · Comprobante junio recibido"] },
-  { id: "r6",  apt: "PH-8B",  name: "Ana Morales",     phone: "+507 6***-**64", cedula: "8-***-**48", estado: "Al día",    bitacora: ["2026-07-03 · Reportó filtración en baño", "2026-06-03 · Comprobante junio recibido"] },
-  { id: "r7",  apt: "PH-9A",  name: "Jorge Sandoval",  phone: "+507 6***-**72", cedula: "8-***-**15", estado: "Moroso 2m", bitacora: ["2026-06-25 · Aviso de morosidad enviado"] },
-  { id: "r8",  apt: "PH-10B", name: "Elena Castro",    phone: "+507 6***-**38", cedula: "8-***-**60", estado: "Al día",    bitacora: ["2026-06-28 · Reportó baja presión de agua (resuelto)"] },
-  { id: "r9",  apt: "PH-11A", name: "Karina López",    phone: "+507 6***-**90", cedula: "8-***-**26", estado: "Al día",    bitacora: ["2026-06-04 · Comprobante junio recibido"] },
-  { id: "r10", apt: "PH-12A", name: "Roberto Díaz",    phone: "+507 6***-**07", cedula: "8-***-**84", estado: "Al día",    bitacora: ["2026-07-04 · Paquete recibido en garita"] },
+  { id: "r1",  apt: "PH-1A",  name: "Marta Ríos",      phone: "+507 6***-**41", cedula: "8-***-**12", estado: "Al día",    tipoId: "estandar",  bitacora: ["2026-06-02 · Comprobante junio recibido", "2026-05-14 · Solicitud de llave adicional"] },
+  { id: "r2",  apt: "PH-2B",  name: "Samuel Ortiz",    phone: "+507 6***-**87", cedula: "8-***-**93", estado: "Al día",    tipoId: "estandar",  bitacora: ["2026-06-05 · Comprobante junio recibido"] },
+  { id: "r3",  apt: "PH-3B",  name: "Carlos Peña",     phone: "+507 6***-**23", cedula: "8-***-**77", estado: "Moroso 1m", tipoId: "estandar",  bitacora: ["2026-06-18 · Reporte de ruido (resuelto)", "2026-05-30 · Recordatorio de pago enviado"] },
+  { id: "r4",  apt: "PH-5A",  name: "Lucía Fernández", phone: "+507 6***-**55", cedula: "8-***-**31", estado: "Al día",    tipoId: "estandar",  bitacora: ["2026-06-10 · Reservó Área Social (20 jun)"] },
+  { id: "r5",  apt: "PH-6A",  name: "Paola Vega",      phone: "+507 6***-**19", cedula: "8-***-**02", estado: "Al día",    tipoId: "estandar",  bitacora: ["2026-06-01 · Comprobante junio recibido"] },
+  { id: "r6",  apt: "PH-8B",  name: "Ana Morales",     phone: "+507 6***-**64", cedula: "8-***-**48", estado: "Al día",    tipoId: "estandar",  bitacora: ["2026-07-03 · Reportó filtración en baño", "2026-06-03 · Comprobante junio recibido"] },
+  { id: "r7",  apt: "PH-9A",  name: "Jorge Sandoval",  phone: "+507 6***-**72", cedula: "8-***-**15", estado: "Moroso 2m", tipoId: "estandar",  bitacora: ["2026-06-25 · Aviso de morosidad enviado"] },
+  { id: "r8",  apt: "PH-10B", name: "Elena Castro",    phone: "+507 6***-**38", cedula: "8-***-**60", estado: "Al día",    tipoId: "estandar",  bitacora: ["2026-06-28 · Reportó baja presión de agua (resuelto)"] },
+  { id: "r9",  apt: "PH-11A", name: "Karina López",    phone: "+507 6***-**90", cedula: "8-***-**26", estado: "Al día",    tipoId: "estandar",  bitacora: ["2026-06-04 · Comprobante junio recibido"] },
+  { id: "r10", apt: "PH-12A", name: "Roberto Díaz",    phone: "+507 6***-**07", cedula: "8-***-**84", estado: "Al día",    tipoId: "penthouse", bitacora: ["2026-07-04 · Paquete recibido en garita"] },
 ];
 
 /* ---------- Comprobantes de pago ---------- */
+/* estado: "Por verificar" | "Confirmado" | "Abono parcial" | "Rechazado" */
+/* El monto esperado no se guarda aquí — se calcula del tipo de apartamento (APT_TYPES vía RESIDENTS.tipoId). */
 const RECEIPTS = [
-  { id: "c1", apt: "PH-1A",  name: "Marta Ríos",      mes: "Julio 2026", monto: 185.00, fecha: "2026-07-02", estado: "Confirmado" },
-  { id: "c2", apt: "PH-8B",  name: "Ana Morales",     mes: "Julio 2026", monto: 185.00, fecha: "2026-07-03", estado: "Confirmado" },
-  { id: "c3", apt: "PH-12A", name: "Roberto Díaz",    mes: "Julio 2026", monto: 210.00, fecha: "2026-07-04", estado: "Por verificar" },
-  { id: "c4", apt: "PH-5A",  name: "Lucía Fernández", mes: "Julio 2026", monto: 185.00, fecha: "2026-07-01", estado: "Confirmado" },
-  { id: "c5", apt: "PH-2B",  name: "Samuel Ortiz",    mes: "Junio 2026", monto: 185.00, fecha: "2026-06-05", estado: "Confirmado" },
-  { id: "c6", apt: "PH-11A", name: "Karina López",    mes: "Junio 2026", monto: 185.00, fecha: "2026-06-04", estado: "Confirmado" },
-  { id: "c7", apt: "PH-10B", name: "Elena Castro",    mes: "Junio 2026", monto: 185.00, fecha: "2026-06-06", estado: "Confirmado" },
+  { id: "c1", apt: "PH-1A",  name: "Marta Ríos",      mes: "Julio 2026", montoPagado: 185.00, fecha: "2026-07-02", estado: "Confirmado",     motivoRechazo: "", bitacora: [] },
+  { id: "c2", apt: "PH-8B",  name: "Ana Morales",     mes: "Julio 2026", montoPagado: 185.00, fecha: "2026-07-03", estado: "Confirmado",     motivoRechazo: "", bitacora: [] },
+  { id: "c3", apt: "PH-12A", name: "Roberto Díaz",    mes: "Julio 2026", montoPagado: 210.00, fecha: "2026-07-04", estado: "Por verificar",  motivoRechazo: "", bitacora: [] },
+  { id: "c4", apt: "PH-5A",  name: "Lucía Fernández", mes: "Julio 2026", montoPagado: 185.00, fecha: "2026-07-01", estado: "Confirmado",     motivoRechazo: "", bitacora: [] },
+  { id: "c5", apt: "PH-2B",  name: "Samuel Ortiz",    mes: "Junio 2026", montoPagado: 185.00, fecha: "2026-06-05", estado: "Confirmado",     motivoRechazo: "", bitacora: [] },
+  { id: "c6", apt: "PH-11A", name: "Karina López",    mes: "Junio 2026", montoPagado: 185.00, fecha: "2026-06-04", estado: "Confirmado",     motivoRechazo: "", bitacora: [] },
+  { id: "c7", apt: "PH-10B", name: "Elena Castro",    mes: "Junio 2026", montoPagado: 185.00, fecha: "2026-06-06", estado: "Confirmado",     motivoRechazo: "", bitacora: [] },
 ];
 
 /* ---------- Áreas comunes ---------- */

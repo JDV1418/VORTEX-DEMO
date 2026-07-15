@@ -74,6 +74,15 @@ function audit(action, detail) {
   state.audit.unshift({ t: nowStr(), user: state.user ? state.user.name : "Sistema", action, detail });
 }
 function isAdmin() { return state.user && state.user.role === "admin"; }
+function pct(a, b) { return b ? Math.round((a / b) * 100) : 0; }
+function emptyNote(txt) { return `<div class="login-note" style="margin-top:8px">📭 ${txt}</div>`; }
+function tipoLabel(tipoId) { const t = APT_TYPES.find((x) => x.id === tipoId); return t ? t.label : "Sin tipo asignado"; }
+function cuotaFor(apt) {
+  const r = RESIDENTS.find((x) => x.apt === apt);
+  if (!r || !r.tipoId) return 0;
+  const t = APT_TYPES.find((x) => x.id === r.tipoId);
+  return t ? t.cuotaMensual : 0;
+}
 
 function pendingReports() { return state.reports.filter((r) => r.status !== "resuelto"); }
 function statusChip(s) {
@@ -293,6 +302,8 @@ function viewDashboard() {
   const vote = VOTES.find((v) => v.status === "activa");
   const pctVote = Math.round((vote.respondidos / vote.enviados) * 100);
   const areasConRep = AREAS.filter((a) => state.reports.some((r) => r.location.areaId === a.id && r.status !== "resuelto")).length;
+  const compEsperado = RECEIPTS.reduce((s, c) => s + cuotaFor(c.apt), 0);
+  const compPagado = RECEIPTS.reduce((s, c) => s + c.montoPagado, 0);
   const hoyIso = isoLocal(new Date());
   const resProximas = state.reservas.filter((r) => r.fecha >= hoyIso && r.estado !== "cancelada").length;
   const resPend = state.reservas.filter((r) => r.estado === "pendiente" || r.estado === "conflicto").length;
@@ -331,7 +342,7 @@ function viewDashboard() {
         ${kpiCard("reportes", "🎫", pend.length, "Reportes pendientes", `<span class="txt-r">${nuevos} nuevos</span>`)}
         ${kpiCard("reservas", "📅", resProximas, "Reservas próximas", `<span class="txt-a">${resPend} por confirmar</span>`)}
         ${kpiCard("residentes", "👥", RESIDENTS.length, "Residentes", `<span class="txt-g">${pctPagos}% al día</span>`)}
-        ${kpiCard("comprobantes", "🧾", RECEIPTS.length, "Comprobantes", `<span class="txt-a">${RECEIPTS.filter((c) => c.estado !== "Confirmado").length} por verificar</span>`)}
+        ${kpiCard("comprobantes", "🧾", RECEIPTS.length, "Comprobantes", `<span class="txt-a">${RECEIPTS.filter((c) => c.estado !== "Confirmado").length} por verificar</span> · <span class="txt-g">${pct(compPagado, compEsperado)}% cobranza</span>`)}
         ${kpiCard("votaciones", "🗳️", pctVote + "%", "Participación votación", `<span class="txt-g">${vote.respondidos}/${vote.enviados} respuestas</span>`)}
         ${kpiCard("areas", "🏛️", areasConRep, "Áreas con reportes", `<span class="txt-m">de ${AREAS.length} áreas comunes</span>`)}
       </div>
@@ -919,9 +930,15 @@ function openResident(id) {
       <div class="list-col" style="margin-top:8px">
         ${recs.length ? recs.map((c) => `
           <div class="list-row"><span class="lr-main"><div class="lr-title">${esc(c.mes)}</div><div class="lr-sub">${esc(c.fecha)} · 🔒 cifrado</div></span>
-          <span class="lr-end"><div class="money">B/. ${c.monto.toFixed(2)}</div><span class="chip ${c.estado === "Confirmado" ? "resuelto" : "proceso"}">${esc(c.estado)}</span></span></div>`).join("")
+          <span class="lr-end"><div class="money">B/. ${c.montoPagado.toFixed(2)}</div><span class="chip ${chipComprobante(c.estado)}">${esc(c.estado)}</span></span></div>`).join("")
         : `<div class="login-note">Sin comprobantes registrados este período.</div>`}
       </div>
+      ${recs.length ? (() => {
+        const esperado = recs.reduce((s, c) => s + cuotaFor(c.apt), 0);
+        const pagado = recs.reduce((s, c) => s + c.montoPagado, 0);
+        const saldo = esperado - pagado;
+        return `<div class="login-note" style="margin-top:8px">💰 Balance: B/. ${pagado.toFixed(2)} recibido de B/. ${esperado.toFixed(2)} esperado${saldo > 0 ? ` · <span class="txt-r">saldo pendiente B/. ${saldo.toFixed(2)}</span>` : ""}</div>`;
+      })() : ""}
     </div>
 
     ${resvs.length ? `<div class="modal-section">
@@ -949,48 +966,163 @@ function revealData(id) {
 /* ============================================================
    MÓDULO COMPROBANTES
    ============================================================ */
+let compFilter = "todos";
+function chipComprobante(estado) {
+  return estado === "Confirmado" ? "resuelto" : estado === "Rechazado" ? "rechazado" : "proceso";
+}
+function setCompFilter(f) { compFilter = f; render(); }
+
 function viewComprobantes() {
-  const total = RECEIPTS.reduce((s, c) => s + c.monto, 0);
+  const totalEsperado = RECEIPTS.reduce((s, c) => s + cuotaFor(c.apt), 0);
+  const totalPagado = RECEIPTS.reduce((s, c) => s + c.montoPagado, 0);
+  const filters = ["todos", "Por verificar", "Abono parcial", "Rechazado", "Confirmado"];
+  const list = compFilter === "todos" ? RECEIPTS : RECEIPTS.filter((c) => c.estado === compFilter);
   return `
   <div class="view-head">
     <div><h2>Comprobantes</h2><div class="crumb">Bitácora contable · recibidos por WhatsApp y clasificados por el bot</div></div>
-    <span class="pill"><span class="dot g"></span> B/. ${total.toFixed(2)} este período</span>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <span class="pill"><span class="dot g"></span> B/. ${totalPagado.toFixed(2)} recibido · ${pct(totalPagado, totalEsperado)}% cobranza</span>
+      ${isAdmin() ? `<button class="btn btn-ghost btn-sm" onclick="openAptTypes()">⚙️ Cuotas por tipo</button>` : ""}
+    </div>
   </div>
+  <div class="seg-tabs">${filters.map((f) => `<button class="seg-tab ${compFilter === f ? "active" : ""}" onclick="setCompFilter('${f}')">${f === "todos" ? "Todos" : f}</button>`).join("")}</div>
   <div class="list-col">
-    ${RECEIPTS.map((c) => `
+    ${list.length ? "" : emptyNote(RECEIPTS.length ? "No hay comprobantes en este filtro." : "Aún no hay comprobantes.")}
+    ${list.map((c) => {
+      const saldo = cuotaFor(c.apt) - c.montoPagado;
+      return `
       <button class="list-row" onclick="openReceipt('${c.id}')">
         <span class="avatar">🧾</span>
         <span class="lr-main"><div class="lr-title">${esc(c.name)} · ${esc(c.apt)}</div><div class="lr-sub">${esc(c.mes)} · recibido ${esc(c.fecha)} · 🔒 cifrado en reposo</div></span>
-        <span class="lr-end"><div class="money">B/. ${c.monto.toFixed(2)}</div><span class="chip ${c.estado === "Confirmado" ? "resuelto" : "proceso"}">${esc(c.estado)}</span></span>
-      </button>`).join("")}
+        <span class="lr-end"><div class="money">B/. ${c.montoPagado.toFixed(2)}${saldo > 0 ? ` <span class="txt-r">(faltan ${saldo.toFixed(2)})</span>` : ""}</div><span class="chip ${chipComprobante(c.estado)}">${esc(c.estado)}</span></span>
+      </button>`;
+    }).join("")}
   </div>`;
 }
 function openReceipt(id) {
   const c = RECEIPTS.find((x) => x.id === id);
-  const msg = `Hola ${c.name} 👋, le confirma la administración de ${PH_NAME}.\n\nRecibimos y verificamos su comprobante de pago de ${c.mes} por B/. ${c.monto.toFixed(2)}. ✅\n\nAdjuntamos su constancia de paz y salvo del período. ¡Gracias!`;
+  const esperado = cuotaFor(c.apt);
+  const saldo = esperado - c.montoPagado;
+  const abierto = c.estado === "Por verificar" || c.estado === "Abono parcial";
+  const msg = `Hola ${c.name} 👋, le confirma la administración de ${PH_NAME}.\n\nRecibimos y verificamos su comprobante de pago de ${c.mes} por B/. ${c.montoPagado.toFixed(2)}. ✅\n\nAdjuntamos su constancia de paz y salvo del período. ¡Gracias!`;
   openModal(`
     <div class="modal-head">
       <div><div class="modal-title">Comprobante · ${esc(c.apt)}</div><div class="modal-sub">${esc(c.mes)} · ${esc(c.fecha)} · <span class="chip lock">🔒 AES-256</span></div></div>
       <button class="modal-x" onclick="closeModal()">✕</button>
     </div>
-    <div class="wa-box" style="margin-top:8px">${waBubble(c.name + " (" + c.apt + ")", { type: "foto", raw: "📷 Comprobante de transferencia — " + c.mes, time: c.fecha })}
-      <div class="bot-line">🤖 <strong>Bot Vortex</strong> clasificó → <span class="chip cat">🧾 Comprobantes · B/. ${c.monto.toFixed(2)}</span></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><span class="chip ${chipComprobante(c.estado)}">${esc(c.estado)}</span></div>
+
+    <div class="modal-section">
+      <span class="card-title">Monto</span>
+      <div class="sec-grid" style="margin-top:8px">
+        <div class="sec-item"><div class="si-t">Esperado <span style="font-weight:400">(${esc(tipoLabel(RESIDENTS.find((r) => r.apt === c.apt)?.tipoId))})</span></div><div class="si-d">B/. ${esperado.toFixed(2)}</div></div>
+        <div class="sec-item"><div class="si-t">Recibido</div><div class="si-d">B/. ${c.montoPagado.toFixed(2)}</div></div>
+        ${saldo > 0 ? `<div class="sec-item"><div class="si-t">Saldo pendiente</div><div class="si-d txt-r">B/. ${saldo.toFixed(2)}</div></div>` : ""}
+      </div>
     </div>
-    ${isAdmin() ? `
+
+    <div class="wa-box" style="margin-top:8px">${waBubble(c.name + " (" + c.apt + ")", { type: "foto", raw: "📷 Comprobante de transferencia — " + c.mes, time: c.fecha })}
+      <div class="bot-line">🤖 <strong>Bot Vortex</strong> clasificó → <span class="chip cat">🧾 Comprobantes · B/. ${c.montoPagado.toFixed(2)}</span></div>
+    </div>
+
+    ${c.motivoRechazo ? `<div class="modal-section"><span class="card-title">Motivo de rechazo</span><div class="login-note" style="margin-top:6px">${esc(c.motivoRechazo)}</div></div>` : ""}
+
+    ${c.bitacora.length ? `<div class="modal-section">
+      <span class="card-title">Bitácora</span>
+      <div class="timeline" style="margin-top:6px">${c.bitacora.map((b) => `<div class="tl-item"><span class="tl-dot"></span><span class="tl-e">${esc(b)}</span></div>`).join("")}</div>
+    </div>` : ""}
+
+    ${isAdmin() && abierto ? `
     <div class="modal-section">
       <span class="card-title">Enviar constancia al residente</span>
       <textarea class="gen-msg" id="rcMsg">${msg}</textarea>
-      <div class="action-row"><button class="btn btn-wa btn-sm" onclick="sendReceipt('${c.id}')">📤 Enviar por WhatsApp</button></div>
+      <div class="action-row">
+        <button class="btn btn-wa btn-sm" onclick="sendReceipt('${c.id}')">📤 Verificar y enviar por WhatsApp</button>
+        <button class="btn btn-danger btn-sm" onclick="toggleRejectBox('${c.id}')">❌ Rechazar</button>
+      </div>
       <div id="rcSentZone"></div>
+      <div id="rejectBox"></div>
     </div>` : ""}
   `);
 }
 function sendReceipt(id) {
   const c = RECEIPTS.find((x) => x.id === id);
-  c.estado = "Confirmado";
+  const esperado = cuotaFor(c.apt);
+  const saldo = esperado - c.montoPagado;
+  c.estado = saldo > 0 ? "Abono parcial" : "Confirmado";
+  c.bitacora.push(`${nowStr()} — Verificado por ${state.user.name}: B/. ${c.montoPagado.toFixed(2)} de B/. ${esperado.toFixed(2)} esperados${saldo > 0 ? ` (saldo B/. ${saldo.toFixed(2)})` : ""}. Constancia enviada.`);
   audit("ENVÍO_WHATSAPP", `Constancia de pago a ${c.name} (${c.apt}) — ${c.mes}`);
   $("#rcSentZone").innerHTML = `<div class="wa-box" style="margin-top:10px">${waMeBubble(c.name, `<div class="wa-media">📎 paz-y-salvo.pdf 🔒</div><div style="white-space:pre-wrap">${esc($("#rcMsg").value)}</div>`)}</div>`;
   toast(`✅ Constancia enviada a <strong>${esc(c.name)}</strong>.`);
+  render();
+}
+function toggleRejectBox(id) {
+  $("#rejectBox").innerHTML = `
+    <div style="margin-top:10px">
+      <textarea class="gen-msg" id="rejMotivo" placeholder="Motivo del rechazo — ej. el monto no coincide, comprobante ilegible…"></textarea>
+      <div class="action-row"><button class="btn btn-danger btn-sm" onclick="rejectReceipt('${id}')">Confirmar rechazo</button></div>
+    </div>`;
+}
+function rejectReceipt(id) {
+  const c = RECEIPTS.find((x) => x.id === id);
+  const motivo = $("#rejMotivo").value.trim() || "Comprobante no coincide con el monto esperado.";
+  c.estado = "Rechazado";
+  c.motivoRechazo = motivo;
+  c.bitacora.push(`${nowStr()} — Rechazado por ${state.user.name}: ${motivo}`);
+  audit("RECHAZO_COMPROBANTE", `Comprobante ${c.mes} de ${c.name} (${c.apt}) rechazado — ${motivo}`);
+  const msg = `Hola ${c.name} 👋, la administración de ${PH_NAME} no pudo validar su comprobante de ${c.mes}.\n\nMotivo: ${motivo}\n\nPor favor reenvíe un comprobante válido. ¡Gracias!`;
+  $("#rejectBox").innerHTML = `<div class="wa-box" style="margin-top:10px">${waMeBubble(c.name, `<div style="white-space:pre-wrap">${esc(msg)}</div>`)}</div>`;
+  toast(`❌ Comprobante rechazado y notificado a <strong>${esc(c.name)}</strong>.`, "warn");
+  render();
+}
+
+/* ---------- Cuotas por tipo de apartamento (solo Administración) ---------- */
+function aptTypesRows() {
+  return APT_TYPES.length ? APT_TYPES.map((t) => `
+    <div class="list-row" style="cursor:default">
+      <span class="lr-main"><div class="lr-title">${esc(t.label)}</div></span>
+      <span class="lr-end" style="display:flex;gap:8px;align-items:center">
+        <input type="number" class="mini-input" min="0" step="0.01" id="qt-${t.id}" value="${t.cuotaMensual}" />
+        <button class="btn btn-ghost btn-sm" onclick="saveAptType('${t.id}')">Guardar</button>
+      </span>
+    </div>`).join("") : emptyNote("Aún no hay tipos de apartamento. Agrega el primero abajo.");
+}
+function openAptTypes() {
+  openModal(`
+    <div class="modal-head">
+      <div><div class="modal-title">⚙️ Cuotas por tipo de apartamento</div><div class="modal-sub">Monto mensual esperado por tipo · solo lo edita Administración</div></div>
+      <button class="modal-x" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-section"><div class="list-col" id="aptTypesList">${aptTypesRows()}</div></div>
+    <div class="modal-section">
+      <span class="card-title">Agregar tipo nuevo</span>
+      <div class="res-form" style="margin-top:8px">
+        <div><label>Nombre del tipo</label><input type="text" id="natLabel" placeholder="Ej. 2 habitaciones" /></div>
+        <div><label>Cuota mensual (B/.)</label><input type="number" id="natMonto" min="0" step="0.01" placeholder="0.00" /></div>
+      </div>
+      <div class="action-row"><button class="btn btn-primary btn-sm" onclick="addAptType()">➕ Agregar tipo</button></div>
+    </div>
+  `);
+}
+function saveAptType(id) {
+  const t = APT_TYPES.find((x) => x.id === id);
+  const val = parseFloat($(`#qt-${id}`).value);
+  t.cuotaMensual = isNaN(val) ? 0 : val;
+  audit("CUOTA_ACTUALIZADA", `Tipo "${t.label}" → B/. ${t.cuotaMensual.toFixed(2)}/mes`);
+  toast(`✅ Cuota de <strong>${esc(t.label)}</strong> actualizada a B/. ${t.cuotaMensual.toFixed(2)}.`);
+  render();
+}
+function addAptType() {
+  const label = $("#natLabel").value.trim();
+  const monto = parseFloat($("#natMonto").value);
+  if (!label) { toast("⚠️ Escribe un nombre para el tipo de apartamento.", "warn"); return; }
+  const id = "tipo-" + Date.now().toString(36);
+  APT_TYPES.push({ id, label, cuotaMensual: isNaN(monto) ? 0 : monto });
+  audit("TIPO_APTO_CREADO", `${label} — B/. ${(isNaN(monto) ? 0 : monto).toFixed(2)}/mes`);
+  toast(`✅ Tipo <strong>${esc(label)}</strong> agregado.`);
+  $("#aptTypesList").innerHTML = aptTypesRows();
+  $("#natLabel").value = "";
+  $("#natMonto").value = "";
   render();
 }
 
